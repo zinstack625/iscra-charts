@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ .Values.bot_config.name }}"
+  labels:
+    {{- include "mostful-manager.labels" . | nindent 4 }}
+data:
+  {{- with .Values.bot_config }}
+  host: "{{ .mmst_instance_host }}"
+  private_channel: "{{ .private_channel_id }}"
+  debug_channel: "{{ .debug_channel }}"
+  {{- end }}

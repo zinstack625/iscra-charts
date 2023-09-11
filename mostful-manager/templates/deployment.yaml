@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mostful-manager.fullname" . }}
+  labels:
+    {{- include "mostful-manager.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mostful-manager.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mostful-manager.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mostful-manager.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ruok
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ruok
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            {{- with .Values.mattermost_secret }}
+            - name: MENTOR_ADD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .name }}"
+                  key: mentor_add_token
+            - name: MENTOR_REMOVE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .name }}"
+                  key: mentor_remove_token
+            - name: CHECK_ME_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .name }}"
+                  key: check_me_token
+            - name: MENTOR_LABS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .name }}"
+                  key: mentor_labs_token
+            - name: LABS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .name }}"
+                  key: labs_token
+            - name: SET_NAME_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .name }}"
+                  key: set_name_token
+            - name: MMST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .name }}"
+                  key: bot_token
+            {{- end }}
+            {{- with .Values.bot_config }}
+            - name: MMST_UID
+              value: "{{ .bot_name }}"
+            - name: URL
+              valueFrom:
+                configMapKeyRef:
+                  name: "{{ .name }}"
+                  key: host
+            - name: PRIVATE_CHANNEL_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: "{{ .name }}"
+                  key: private_channel
+            - name: DEBUG_CHANNEL_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: "{{ .name }}"
+                  key: debug_channel
+            {{- end }}
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Values.postgres.secret.name }}"
+                  key: "{{ .Values.postgres.secret.key }}"
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
