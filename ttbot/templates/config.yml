@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ttbot.fullname" . }}-config
+  labels:
+    {{- include "ttbot.labels" . | nindent 4 }}
+data:
+  {{- with .Values.bot_config }}
+  host: "{{ .redmine_host_url }}"
+  refresh_period: "{{ .refresh_period }}"
+  sleep_timeout: "{{ .sleep_timeout }}"
+  notify_period: "{{ .notify_period }}"
+  https: "{{ .use_https }}"
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ttbot.fullname" . }}-config-template
+  labels:
+    {{- include "ttbot.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {
+      "refresh_period"        : $REFRESH_PERIOD,
+      "sleep_timeout"         : $SLEEP_TIMEOUT,
+      "notify_period"         : $NOTIFY_PERIOD,
+      "use_https"             : $HTTPS,
+      "redmine_root_url"      : "$REDMINE_URL",
+      "user_db_path"          : "./udb/localbase.json",
+      "scenery_path"          : "./scenery.json",
+      "allowed_api_functions" : [],
+      "address"               : "0.0.0.0",
+      "port"                  : 43210
+    }

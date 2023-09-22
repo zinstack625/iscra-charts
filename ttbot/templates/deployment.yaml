@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ttbot.fullname" . }}
+  labels:
+    {{- include "ttbot.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ttbot.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ttbot.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ttbot.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: control
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: K
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ttbot.fullname" . }}-secret
+                  key: telegram_token
+            - name: T
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ttbot.fullname" . }}-secret
+                  key: redmine_key
+            - name: CFG
+              value: "/config/config.json"
+            - name: REFRESH_PERIOD
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ttbot.fullname" . }}-config
+                  key: refresh_period
+            - name: SLEEP_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ttbot.fullname" . }}-config
+                  key: sleep_timeout
+            - name: NOTIFY_PERIOD
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ttbot.fullname" . }}-config
+                  key: notify_period
+            - name: REDMINE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ttbot.fullname" . }}-config
+                  key: host
+            - name: HTTPS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "ttbot.fullname" . }}-config
+                  key: https
+          volumeMounts:
+            - name: user-database
+              mountPath: /usr/src/app/udb
+            - name: config-template
+              mountPath: /config
+      volumes:
+        - name: user-database
+          persistentVolumeClaim:
+            claimName: pvc-{{ include "ttbot.fullname" . }}
+        - name: config-template
+          configMap:
+            name: {{ include "ttbot.fullname" . }}-config-template
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
